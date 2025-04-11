@@ -1,15 +1,15 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const fs = require('fs');
-const cors = require('cors')
-const app = express()
+const cors = require('cors');
+const app = express();
 const port = 3030;
 
-app.use(cors())
+app.use(cors());
 app.use(require('body-parser').urlencoded({ extended: false }));
 
-const reviews_data = JSON.parse(fs.readFileSync("reviews.json", 'utf8'));
-const dealerships_data = JSON.parse(fs.readFileSync("dealerships.json", 'utf8'));
+const [reviews] = JSON.parse(fs.readFileSync("reviews.json", 'utf8'));
+const [dealerships] = JSON.parse(fs.readFileSync("dealerships.json", 'utf8'));
 
 mongoose.connect("mongodb://mongo_db:27017/",{'dbName':'dealershipsDB'});
 
@@ -17,13 +17,14 @@ mongoose.connect("mongodb://mongo_db:27017/",{'dbName':'dealershipsDB'});
 const Reviews = require('./review');
 
 const Dealerships = require('./dealership');
+const dealership = require('./dealership');
 
 try {
   Reviews.deleteMany({}).then(()=>{
-    Reviews.insertMany(reviews_data['reviews']);
+    Reviews.insertMany(reviews);
   });
   Dealerships.deleteMany({}).then(()=>{
-    Dealerships.insertMany(dealerships_data['dealerships']);
+    Dealerships.insertMany(dealerships);
   });
   
 } catch (error) {
@@ -33,7 +34,7 @@ try {
 
 // Express route to home
 app.get('/', async (req, res) => {
-    res.send("Welcome to the Mongoose API")
+    res.send("Welcome to the Mongoose API");
 });
 
 // Express route to fetch all reviews
@@ -88,24 +89,34 @@ app.get('/fetchDealer/:id', async (req, res) => {
 
 //Express route to insert review
 app.post('/insert_review', express.raw({ type: '*/*' }), async (req, res) => {
-  data = JSON.parse(req.body);
-  const documents = await Reviews.find().sort( { id: -1 } )
-  let new_id = documents[0]['id']+1
+  [
+    name,
+    dealership_data=dealership,
+    review_data=review,
+    purchase,
+    purchase_date,
+    car_make,
+    car_model,
+    car_year
+  ] = JSON.parse(req.body);
+  const documents = await Reviews.find().sort( { id: -1 } );
+  let [id] = documents[0];
+  let new_id = id+1;
 
-  const review = new Reviews({
-		"id": new_id,
-		"name": data['name'],
-		"dealership": data['dealership'],
-		"review": data['review'],
-		"purchase": data['purchase'],
-		"purchase_date": data['purchase_date'],
-		"car_make": data['car_make'],
-		"car_model": data['car_model'],
-		"car_year": data['car_year'],
+  const reviewModel = new Reviews({
+		id: new_id,
+		name,
+		dealership: dealership_data,
+		review: review_data,
+		purchase,
+		purchase_date,
+		car_make,
+		car_model,
+		car_year,
 	});
 
   try {
-    const savedReview = await review.save();
+    const savedReview = await reviewModel.save();
     res.json(savedReview);
   } catch (error) {
 		console.log(error);
